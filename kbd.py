@@ -1,7 +1,7 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
-async def build_keyboard(params,is_inline=True,url=False):
+async def build_keyboard(params,is_inline=True,url=False,adjust=2):
     if is_inline:
         print(params)
         builder = InlineKeyboardBuilder()
@@ -10,12 +10,12 @@ async def build_keyboard(params,is_inline=True,url=False):
                 builder.add(InlineKeyboardButton(text=param, url=params[param]))
             else:
                 builder.add(InlineKeyboardButton(text=params[param], callback_data=param))
-        return builder.adjust(2).as_markup()
+        return builder.adjust(adjust).as_markup()
     else:
         builder = ReplyKeyboardBuilder()
         for param in params:
             builder.add(KeyboardButton(text=param))
-        return builder.adjust(2).as_markup(resize_keyboard=True,
+        return builder.adjust(adjust).as_markup(resize_keyboard=True,
                                            one_time_keyboard=True,
                                            input_field_placeholder="Выберите действие..."
                                            )
