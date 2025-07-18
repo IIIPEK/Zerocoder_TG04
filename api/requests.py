@@ -23,7 +23,6 @@ async def get_countries_list(url, session: ClientSession):
     }
     try:
         async with session.post(url, json=query) as response:
-            print(response.status)
             if response.status == 200:
                 data = await response.json()
                 countries_cache = {country['code']: country['name'] for country in data['data']['countries']}
@@ -33,8 +32,7 @@ async def get_countries_list(url, session: ClientSession):
         return None
 
 
-async def get_country_details(country_code: str):
-    url = "https://countries.trevorblades.com"
+async def get_country_details(url,session: ClientSession,country_code: str):
     query = {
         'query': f'''
         {{
@@ -53,13 +51,12 @@ async def get_country_details(country_code: str):
     }
 
     try:
-        async with ClientSession() as session:
-            async with session.post(url, json=query) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return data.get('data', {}).get('country')
-                else:
-                    return None
+        async with session.post(url, json=query) as response:
+            if response.status == 200:
+                data = await response.json()
+                return data.get('data', {}).get('country')
+            else:
+                return None
     except Exception as e:
         logging.error(f"Error fetching country details: {e}")
         return None

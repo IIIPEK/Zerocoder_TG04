@@ -1,21 +1,17 @@
-import asyncio
-import logging
 import os
 
 
 
-from aiogram import Bot, Dispatcher, types, F
+from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command, CommandStart
 from aiogram.filters.callback_data import CallbackData
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
 from aiohttp import ClientSession
 
 from dotenv import load_dotenv
 
-from kbd import more_kbd, options_kbd, url_kbd, start_kbd, build_keyboard
+from kbd import build_keyboard
 from utils import set_loglevel, group_countries_by_letter
-from api import get_countries_list, countries_cache
+from api import get_countries_list, get_country_details
 
 load_dotenv()
 TOKEN = os.getenv('TOKEN')
@@ -75,11 +71,6 @@ async def process_start_command(message: types.Message):
     keyboard = await create_letters_menu()
     await sent_message.edit_text(text='🌍 Выберите первую букву названия страны:', reply_markup= keyboard)
 
-@dp.message(Command(commands=['links']))
-async def process_links_command(message: types.Message):
-    await message.answer(text='Список ссылок', reply_markup= await build_keyboard(url_kbd, is_inline=True, url=True))
-
-
 @dp.callback_query(LetterCallback.filter())
 async def handle_letter_callback(callback: types.CallbackQuery, callback_data: LetterCallback):
     letter = callback_data.letter
@@ -104,7 +95,27 @@ async def handle_back_callback(callback: types.CallbackQuery, callback_data: Bac
             await callback.message.edit_text("❌ Не удалось загрузить главное меню.")
 
 
+@dp.callback_query(CountryCallback.filter())
+async def handle_country_callback(callback: types.CallbackQuery, callback_data: CountryCallback):
+    country_code = callback_data.code
 
+    await callback.answer()
+    await callback.message.edit_text("🔄 Загружаю информацию о стране...")
+
+    # Получаем детальную информацию о стране
+    async with ClientSession() as session:
+        country = await get_country_details(url, session, country_code)
+    first_letter = country['name'][0].upper()
+    kbd ={LetterCallback(letter=first_letter).pack():f"⬅️ Назад к странам на {first_letter}",
+          BackCallback(to="main").pack():"🏠 Главное меню",}
+    keyboard = await build_keyboard(kbd, is_inline=True)
+    await callback.message.edit_text(
+        f"🌍 Название: {country['name']}\n"
+        f"🌍 Название на русском: {country['native']}\n"
+        f"🌍 Эмодзи: {country['emoji']}\n"
+        f"🌍 Валюта: {country['currency']}\n"
+        f"🌍 Языки: {', '.join([f'{lang["code"]} - {lang["name"]}' for lang in country['languages']])}",
+        reply_markup=keyboard)
 
 if __name__ == '__main__':
     dp.run_polling(bot)
