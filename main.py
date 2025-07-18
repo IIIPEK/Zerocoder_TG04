@@ -61,8 +61,11 @@ async def process_help_command(message: types.Message):
     await message.answer('''Я умею выполнять такие команды:
     /start - Запустить бота
     /help - Этот текст
-    /links - Список ссылок
-    /dynamic - Список опций
+    при запуске бота выдастся меню выбора букв,
+    при выборе буквы выдастся меню выбора стран
+    начинающихся с этой буквы.
+    Далее вы сможете выбрать страну, чтобы узнать ее название,
+    название на родном языке, значок, валюту, языки и т.д.
     ''')
 
 @dp.message(CommandStart())
@@ -111,8 +114,8 @@ async def handle_country_callback(callback: types.CallbackQuery, callback_data: 
     keyboard = await build_keyboard(kbd, is_inline=True)
     await callback.message.edit_text(
         f"🌍 Название: {country['name']}\n"
-        f"🌍 Название на русском: {country['native']}\n"
-        f"🌍 Эмодзи: {country['emoji']}\n"
+        f"🌍 Название на родном языке: {country['native']}\n"
+        f"🌍 Значок: {country['emoji']}\n"
         f"🌍 Валюта: {country['currency']}\n"
         f"🌍 Языки: {', '.join([f'{lang["code"]} - {lang["name"]}' for lang in country['languages']])}",
         reply_markup=keyboard)

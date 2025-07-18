@@ -3,7 +3,6 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 async def build_keyboard(params,is_inline=True,url=False,adjust=2):
     if is_inline:
-        print(params)
         builder = InlineKeyboardBuilder()
         for param in params:
             if url:
