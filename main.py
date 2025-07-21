@@ -1,124 +1,80 @@
 import os
+import sqlite3
 
 
-
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandStart
 from aiogram.filters.callback_data import CallbackData
 from aiohttp import ClientSession
 
 from dotenv import load_dotenv
 
-from kbd import build_keyboard
+from api import get_exchangerates
+from common import FinanceForm
+from kbd import build_keyboard, main_kbd
 from utils import set_loglevel, group_countries_by_letter
-from api import get_countries_list, get_country_details
+from dbwork import db_select, db_add, db_create, db_update
+
+S = "Lfyyst "
 
 load_dotenv()
 TOKEN = os.getenv('TOKEN')
 set_loglevel(level=os.getenv('LOG_LEVEL', 'INFO'))
 url = os.getenv('API_URL')
+api_key = os.getenv('API_KEY')
+url = url.replace('{API_KEY}', api_key)
+db_path = os.getenv('DB_PATH')
+db_create(db_path)
 
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-class LetterCallback(CallbackData, prefix="letter"):
-    letter: str
-
-class CountryCallback(CallbackData, prefix="country"):
-    code: str
-
-class BackCallback(CallbackData, prefix="back"):
-    to: str  # "main" или "letters"
-
-async def create_letters_menu():
-    async with ClientSession() as session:
-        countries = await get_countries_list(url, session)
-    letters = group_countries_by_letter(countries)
-    letter_menu = {LetterCallback(letter=x).pack():f"{x}({len(letters[x])})" for x in letters.keys()}
-    return await build_keyboard(letter_menu, is_inline=True, adjust=6)
 
 
-async def create_countries_menu(letter):
-    async with ClientSession() as session:
-        countries = await get_countries_list(url, session)
-    if not countries:
-        return None
-
-    grouped_countries = group_countries_by_letter(countries)
-    countries_for_letter = grouped_countries.get(letter, [])
-
-    keyboard = {}
-
-    for country in countries_for_letter:
-        keyboard[CountryCallback(code=country['code']).pack()] = country['name']
-    # Добавляем кнопку "Назад"
-    keyboard[BackCallback(to="main").pack()] = "⬅️ Назад к буквам"
-    return await build_keyboard(keyboard, is_inline=True, adjust=4)
 
 @dp.message(Command(commands=['help']))
 async def process_help_command(message: types.Message):
     await message.answer('''Я умею выполнять такие команды:
     /start - Запустить бота
     /help - Этот текст
-    при запуске бота выдастся меню выбора букв,
-    при выборе буквы выдастся меню выбора стран
-    начинающихся с этой буквы.
-    Далее вы сможете выбрать страну, чтобы узнать ее название,
-    название на родном языке, значок, валюту, языки и т.д.
+    при запуске бота выдастся меню выбора
     ''')
 
 @dp.message(CommandStart())
 async def process_start_command(message: types.Message):
-    sent_message = await message.answer("🔄 Загружаю список стран...")
-    keyboard = await create_letters_menu()
-    await sent_message.edit_text(text='🌍 Выберите первую букву названия страны:', reply_markup= keyboard)
+    keyboard = await build_keyboard(main_kbd, is_inline=False, one_time_keyboard=False)
+    await message.answer("Привет! Я твой личный помощник. Выбери опцию в меню.\n", reply_markup= keyboard)
 
-@dp.callback_query(LetterCallback.filter())
-async def handle_letter_callback(callback: types.CallbackQuery, callback_data: LetterCallback):
-    letter = callback_data.letter
-    await callback.answer()
-    await callback.message.edit_text("🔄 Загружаю страны...")
-    keyboard = await create_countries_menu(letter)
-    await callback.message.edit_text("🌍 Выберите страну:", reply_markup=keyboard)
+@dp.message(F.text == 'Регистрация')
+async def process_start_registration(message: types.Message):
+    user_id = message.from_user.id
+    name = message.from_user.full_name
+    is_user_exists = db_select(db_path, cond={"user_id": user_id})
+    if not is_user_exists:
+        if db_add(db_path, "users", {"user_id": user_id, "name": name}):
+            await message.answer("Данные успешно добавлены.")
+    else:
+        await message.answer("Вы уже зарегистрированы")
 
-
-@dp.callback_query(BackCallback.filter())
-async def handle_back_callback(callback: types.CallbackQuery, callback_data: BackCallback):
-    await callback.answer()
-
-    if callback_data.to == "main":
-        keyboard = await create_letters_menu()
-        if keyboard:
-            await callback.message.edit_text(
-                "🌍 Выберите первую букву названия страны:",
-                reply_markup=keyboard
-            )
-        else:
-            await callback.message.edit_text("❌ Не удалось загрузить главное меню.")
-
-
-@dp.callback_query(CountryCallback.filter())
-async def handle_country_callback(callback: types.CallbackQuery, callback_data: CountryCallback):
-    country_code = callback_data.code
-
-    await callback.answer()
-    await callback.message.edit_text("🔄 Загружаю информацию о стране...")
-
-    # Получаем детальную информацию о стране
+@dp.message(F.text == 'Курс валют')
+async def process_exchangerate(message: types.Message):
     async with ClientSession() as session:
-        country = await get_country_details(url, session, country_code)
-    first_letter = country['name'][0].upper()
-    kbd ={LetterCallback(letter=first_letter).pack():f"⬅️ Назад к странам на {first_letter}",
-          BackCallback(to="main").pack():"🏠 Главное меню",}
-    keyboard = await build_keyboard(kbd, is_inline=True)
-    await callback.message.edit_text(
-        f"🌍 Название: {country['name']}\n"
-        f"🌍 Название на родном языке: {country['native']}\n"
-        f"🌍 Значок: {country['emoji']}\n"
-        f"🌍 Валюта: {country['currency']}\n"
-        f"🌍 Языки: {', '.join([f'{lang["code"]} - {lang["name"]}' for lang in country['languages']])}",
-        reply_markup=keyboard)
+        exchangerates = await get_exchangerates(url, session)
+    if exchangerates:
+        usd_rub = exchangerates.get('RUB', 0)
+        usd_eur = exchangerates.get('EUR', 0)
+        eur_rub = usd_rub / usd_eur
+        await message.answer(f"Курс USD/RUB: {usd_rub:.2f}\nКурс EUR/RUB: {eur_rub:.2f}\nКурс EUR/USD: {usd_eur:.2f}")
+    else:
+        await message.answer("Не удалось получить курсы валют.")
+
+@dp.message(F.text == 'Советы по экономии')
+async def process_advice(message: types.Message):
+    tips = [
+        ""
+    ]
+    await message.answer(tips)
 
 if __name__ == '__main__':
     dp.run_polling(bot)

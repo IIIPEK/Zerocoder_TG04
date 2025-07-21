@@ -1,5 +1,7 @@
 import logging
+import sqlite3
 from collections import defaultdict
+
 
 
 def set_loglevel(level: str):
@@ -26,3 +28,4 @@ def group_countries_by_letter(countries):
         grouped[letter].sort(key=lambda x: x['name'])
 
     return dict(grouped)
+
