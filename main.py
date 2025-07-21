@@ -1,6 +1,6 @@
 import os
 import sqlite3
-
+import random
 
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandStart
@@ -72,9 +72,12 @@ async def process_exchangerate(message: types.Message):
 @dp.message(F.text == 'Советы по экономии')
 async def process_advice(message: types.Message):
     tips = [
-        ""
+        "Совет 1: Ведите бюджет и следите за своими расходами.",
+        "Совет 2: Откладывайте часть доходов на сбережения.",
+        "Совет 3: Покупайте товары по скидкам и распродажам."
     ]
-    await message.answer(tips)
+    tip = random.choice(tips)
+    await message.answer(tip)
 
 if __name__ == '__main__':
     dp.run_polling(bot)
