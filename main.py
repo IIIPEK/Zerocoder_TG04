@@ -36,11 +36,8 @@ dp = Dispatcher()
 
 @dp.message(Command(commands=['help']))
 async def process_help_command(message: types.Message):
-    await message.answer('''Я умею выполнять такие команды:
-    /start - Запустить бота
-    /help - Этот текст
-    при запуске бота выдастся меню выбора
-    ''')
+    from common import help_text
+    await message.answer(help_text, parse_mode='HTML')
 
 @dp.message(CommandStart())
 async def process_start_command(message: types.Message):
