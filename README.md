@@ -81,7 +81,8 @@ python main.py
 │   └── requests.py         # Работа с внешними API
 ├── common/
 │   ├── __init__.py
-│   └── classes.py          # FSM классы состояний
+│   ├── classes.py          # FSM классы состояний
+│   └── messages.py         # Сообщение для команды /help и для расширения функционала в будущем
 ├── dbwork/
 │   ├── __init__.py
 │   └── sql_work.py         # Работа с базой данных
