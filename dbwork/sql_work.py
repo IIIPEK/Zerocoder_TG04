@@ -6,7 +6,9 @@ def sql_execute(db_path, query = None, data = None):
         try:
             with sqlite3.connect(db_path) as db:
                 cursor = db.cursor()
+                print(query)
                 if data:
+                    print(data)
                     cursor.execute(query, data)
                 else:
                     cursor.execute(query)
@@ -64,16 +66,17 @@ def db_add(db_path, tabel_name, data):
     query = f"INSERT INTO {tabel_name} ({columns}) VALUES ({placeholders})"
     return sql_execute(db_path, query, tuple(data.values()))
 
-def db_update(db_path, tabel_name, data):
-    columns = ', '.join(data.keys())
-    placeholders = ', '.join(['?'] * len(data))
-    query = f"UPDATE {tabel_name} SET ({columns}) VALUES ({placeholders})"
+def db_update(db_path, tabel_name, data, cond):
+    columns = '= ?, '.join(data.keys()) + ' = ?'
+    query = f"UPDATE {tabel_name} SET {columns}{generate_conditions(cond)}"
     return sql_execute(db_path, query, tuple(data.values()))
 
 def db_select(db_path, tabel_name = 'users', cond = None,):
-    if cond == None:
-        query = f"SELECT * FROM {tabel_name}"
-        return sql_select(db_path, query)
-    condition = " and ".join(f" {k} = {v}" for k, v in cond.items())
-    query = f"SELECT * FROM {tabel_name} WHERE {condition} "
+    query = f"SELECT * FROM {tabel_name}{generate_conditions(cond)}"
     return sql_select(db_path, query)
+
+def generate_conditions(cond):
+    if cond == None:
+        return ""
+    condition = " and ".join(f" {k} = {v}" for k, v in cond.items())
+    return f" WHERE {condition}"
