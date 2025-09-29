@@ -1,7 +1,5 @@
 import os
 
-
-
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command, CommandStart
 from aiogram.filters.callback_data import CallbackData
